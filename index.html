@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ghép Hình Nghệ Thuật - Jigsaw Puzzle</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Quicksand & Be Vietnam Pro -->
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Tùy chỉnh font chữ và ngăn chặn hành vi kéo/zoom mặc định trên thiết bị cảm ứng */
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background: radial-gradient(circle at center, #fdf8f2 0%, #f3e8d8 100%);
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        h1, h2, .font-display {
+            font-family: 'Quicksand', sans-serif;
+        }
+        /* Hiệu ứng bóng đổ mềm cho giao diện gỗ ấm áp */
+        .wood-panel {
+            background: rgba(255, 252, 247, 0.92);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(217, 195, 169, 0.6);
+            box-shadow: 0 8px 32px rgba(92, 64, 38, 0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(217, 119, 6, 0.4);
+        }
+        .btn-primary:active {
+            transform: scale(0.96);
+        }
+        .btn-secondary {
+            background: #fff;
+            color: #5c4026;
+            border: 1px solid #e2d1bc;
+            box-shadow: 0 2px 6px rgba(92, 64, 38, 0.05);
+            transition: all 0.15s ease;
+        }
+        .btn-secondary:hover {
+            background: #fcf6ee;
+            border-color: #d4b895;
+        }
+        .btn-secondary:active {
+            transform: scale(0.96);
+        }
+        .btn-active {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            color: #b45309;
+        }
+        /* Canvas chính chiếm toàn bộ vùng chơi */
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        #game-canvas:active {
+            cursor: grabbing;
+        }
+        /* Thanh cuộn tùy chỉnh cho modal chọn ảnh */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f5ebe0;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d5bdaf;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #b09382;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col text-stone-800">
+
+    <!-- Thanh điều khiển trên cùng (Header Toolbar) -->
+    <header class="wood-panel z-20 px-3 py-2 sm:px-6 sm:py-3 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <!-- Logo & Tên Game -->
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md">
+                <!-- Icon mảnh ghép SVG -->
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="font-display font-bold text-base sm:text-xl text-amber-950 leading-tight">Ghép Hình Nghệ Thuật</h1>
+                <p id="status-subtitle" class="text-[11px] sm:text-xs text-stone-500 font-medium">Chế độ: 4x4 (16 mảnh)</p>
+            </div>
+        </div>
+
+        <!-- Bộ đếm Thời gian & Bước đi -->
+        <div class="flex items-center gap-2 sm:gap-4 bg-amber-50/80 border border-amber-200/70 px-3 py-1.5 rounded-xl">
+            <div class="flex items-center gap-1.5" title="Thời gian chơi">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                </svg>
+                <span id="timer-display" class="font-mono font-bold text-sm sm:text-base text-amber-950">00:00</span>
+            </div>
+            <div class="w-px h-4 bg-amber-200"></div>
+            <div class="flex items-center gap-1.5" title="Số bước di chuyển">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"/>
+                </svg>
+                <span id="moves-display" class="font-mono font-bold text-sm sm:text-base text-amber-950">0</span>
+            </div>
+            <div class="w-px h-4 bg-amber-200 hidden sm:block"></div>
+            <div class="hidden sm:flex items-center gap-1.5" title="Tiến độ hoàn thành">
+                <span id="progress-display" class="font-mono font-bold text-sm text-emerald-700">0%</span>
+            </div>
+        </div>
+
+        <!-- Các nút công cụ hỗ trợ -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            <!-- Nút Xem ảnh mẫu (Ghost Image) -->
+            <button id="btn-toggle-hint" class="btn-secondary px-2.5 py-2 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5" title="Bật/tắt hình mờ gợi ý dưới nền">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                <span class="hidden md:inline">Ảnh mẫu</span>
+            </button>
+
+            <!-- Nút Xếp gọn mảnh lẻ -->
+            <button id="btn-scatter" class="btn-secondary px-2.5 py-2 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5" title="Gom các mảnh chưa ghép sang hai bên lề">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                <span class="hidden md:inline">Xếp gọn</span>
+            </button>
+
+            <!-- Nút Bật/Tắt Âm thanh -->
+            <button id="btn-sound" class="btn-secondary p-2 rounded-xl text-amber-700" title="Bật / Tắt âm thanh">
+                <svg id="icon-sound-on" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+                </svg>
+                <svg id="icon-sound-off" class="w-4 h-4 sm:w-5 sm:h-5 hidden text-stone-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/>
+                </svg>
+            </button>
+
+            <!-- Nút Chọn Hình / Độ Khó -->
+            <button id="btn-open-menu" class="btn-primary px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                </svg>
+                <span>Chọn Hình</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Khu vực Bàn Chơi Chính (Interactive Canvas) -->
+    <main id="canvas-wrapper" class="relative flex-1 w-full h-full overflow-hidden">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Thông báo nổi nhỏ (Toast Notification) -->
+        <div id="toast-msg" class="pointer-events-none fixed bottom-5 left-1/2 -translate-x-1/2 bg-stone-900/85 text-white px-4 py-2 rounded-full text-xs sm:text-sm font-medium shadow-lg opacity-0 transition-opacity duration-300 z-30">
+            Thông báo
+        </div>
+    </main>
+
+    <!-- MODAL 1: Chọn Hình Ảnh & Độ Khó -->
+    <div id="setup-modal" class="fixed inset-0 z-40 bg-stone-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+        <div class="wood-panel w-full max-w-3xl max-h-[92vh] rounded-3xl flex flex-col overflow-hidden shadow-2xl animate-fade-in">
+            <!-- Header Modal -->
+            <div class="px-5 py-4 sm:px-7 sm:py-5 border-b border-amber-200/70 flex items-center justify-between bg-amber-50/50">
+                <div>
+                    <h2 class="font-display font-bold text-xl sm:text-2xl text-amber-950">Thiết Lập Màn Chơi Mới</h2>
+                    <p class="text-xs sm:text-sm text-stone-600 mt-0.5">Chọn một bức tranh nghệ thuật hoặc tải ảnh của riêng bạn</p>
+                </div>
+                <button id="btn-close-modal" class="p-2 rounded-full hover:bg-amber-200/50 text-stone-600 transition-colors" title="Đóng">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Nội dung Modal -->
+            <div class="p-5 sm:p-7 overflow-y-auto space-y-6 flex-1">
+                <!-- Bước 1: Chọn Bức Tranh -->
+                <div>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <label class="font-display font-bold text-base sm:text-lg text-amber-950 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-amber-600 text-white text-xs flex items-center justify-center">1</span>
+                            Chọn Hình Mẫu Hoặc Tải Ảnh Lên
+                        </label>
+                        <!-- Nút Upload Ảnh Cá Nhân -->
+                        <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                            </svg>
+                            <span>Tải ảnh từ máy</span>
+                            <input type="file" id="image-upload" accept="image/*" class="hidden">
+                        </label>
+                    </div>
+
+                    <!-- Lưới hiển thị các bức tranh mẫu được vẽ bằng Canvas -->
+                    <div id="gallery-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                        <!-- Các thẻ hình sẽ được JS sinh tự động tại đây -->
+                    </div>
+                </div>
+
+                <!-- Bước 2: Chọn Độ Khó (Số Mảnh Ghép) -->
+                <div>
+                    <label class="font-display font-bold text-base sm:text-lg text-amber-950 flex items-center gap-2 mb-3">
+                        <span class="w-6 h-6 rounded-full bg-amber-600 text-white text-xs flex items-center justify-center">2</span>
+                        Chọn Độ Khó (Số Lượng Mảnh Ghép)
+                    </label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="difficulty-selector">
+                        <button type="button" data-grid="3" class="diff-btn btn-secondary p-3 rounded-2xl text-left border-2 transition-all">
+                            <div class="font-display font-bold text-base text-amber-950">Dễ</div>
+                            <div class="text-xs text-stone-500 mt-0.5">3 × 3 (9 mảnh)</div>
+                        </button>
+                        <button type="button" data-grid="4" class="diff-btn btn-secondary p-3 rounded-2xl text-left border-2 border-amber-500 bg-amber-50/90 transition-all">
+                            <div class="font-display font-bold text-base text-amber-950">Trung bình</div>
+                            <div class="text-xs text-stone-500 mt-0.5">4 × 4 (16 mảnh)</div>
+                        </button>
+                        <button type="button" data-grid="5" class="diff-btn btn-secondary p-3 rounded-2xl text-left border-2 transition-all">
+                            <div class="font-display font-bold text-base text-amber-950">Khó</div>
+                            <div class="text-xs text-stone-500 mt-0.5">5 × 5 (25 mảnh)</div>
+                        </button>
+                        <button type="button" data-grid="6" class="diff-btn btn-secondary p-3 rounded-2xl text-left border-2 transition-all">
+                            <div class="font-display font-bold text-base text-amber-950">Siêu khó</div>
+                            <div class="text-xs text-stone-500 mt-0.5">6 × 6 (36 mảnh)</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Modal -->
+            <div class="px-5 py-4 sm:px-7 bg-amber-50/70 border-t border-amber-200/70 flex justify-end gap-3">
+                <button id="btn-start-game" class="btn-primary w-full sm:w-auto px-8 py-3 rounded-2xl font-display font-bold text-base sm:text-lg flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <span>Bắt Đầu Ghép Hình</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Chiến Thắng (Victory Screen) -->
+    <div id="victory-modal" class="fixed inset-0 z-50 bg-stone-950/65 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="wood-panel w-full max-w-md rounded-3xl p-6 sm:p-8 text-center shadow-2xl transform transition-all">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-lg">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path d="M12 15l-2 5l9-9l-9-9l2 5l-9 4l9 4z" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h2 class="font-display font-bold text-2xl sm:text-3xl text-amber-950">Hoàn Thành Xuất Sắc!</h2>
+            <p class="text-sm text-stone-600 mt-1">Bạn đã ghép trọn vẹn bức tranh tuyệt đẹp này.</p>
+
+            <!-- Khung xem trước bức tranh hoàn chỉnh -->
+            <div class="my-5 p-2 bg-white rounded-2xl shadow-inner border border-amber-200/80 inline-block">
+                <img id="victory-preview" src="" alt="Tranh hoàn chỉnh" class="w-44 h-44 sm:w-52 sm:h-52 object-cover rounded-xl mx-auto">
+            </div>
+
+            <!-- Thống kê thành tích -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-amber-50/90 border border-amber-200/70 rounded-2xl p-3">
+                    <div class="text-xs text-stone-500 font-medium">Thời gian</div>
+                    <div id="victory-time" class="font-mono font-bold text-lg sm:text-xl text-amber-900 mt-0.5">00:00</div>
+                </div>
+                <div class="bg-amber-50/90 border border-amber-200/70 rounded-2xl p-3">
+                    <div class="text-xs text-stone-500 font-medium">Số bước di chuyển</div>
+                    <div id="victory-moves" class="font-mono font-bold text-lg sm:text-xl text-amber-900 mt-0.5">0</div>
+                </div>
+            </div>
+
+            <!-- Nút hành động -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button id="btn-play-again" class="btn-secondary flex-1 py-3 px-4 rounded-xl font-display font-bold text-sm sm:text-base">
+                    Chơi Lại Hình Này
+                </button>
+                <button id="btn-choose-another" class="btn-primary flex-1 py-3 px-4 rounded-xl font-display font-bold text-sm sm:text-base">
+                    Chọn Hình Khác
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * TRÒ CHƠI GHÉP HÌNH NGHỆ THUẬT (JIGSAW PUZZLE)
+     * Kiến trúc:
+     * 1. SoundManager: Tạo hiệu ứng âm thanh bằng Web Audio API (không cần file mp3 bên ngoài).
+     * 2. ArtGenerator: Vẽ 4 bức tranh mẫu sắc nét 800x800 bằng HTML5 Canvas 2D (Phong cảnh, Kiến trúc, Động vật, Trừu tượng).
+     * 3. PuzzleEngine:
+     *    - Sinh ma trận khớp răng cưa (tabs & blanks) ngẫu nhiên nhưng khớp nhau tuyệt đối giữa các cạnh liền kề.
+     *    - Pre-render từng mảnh ghép vào Offscreen Canvas riêng kèm viền nổi 3D và đổ bóng để đạt 60FPS mượt mà.
+     *    - Quản lý nhóm mảnh ghép (Group ID): Khi 2 mảnh liền kề khớp nhau ở bất kỳ đâu trên bàn, chúng hợp nhất thành 1 khối.
+     *    - Hỗ trợ lực hút từ tính (Magnetic Snap) vào vị trí chuẩn trên bảng hoặc vào mảnh liền kề.
+     *    - Hệ thống Confetti chúc mừng khi hoàn thành.
+     */
+
+    // =========================================================================
+    // 1. QUẢN LÝ ÂM THANH (WEB AUDIO API)
+    // =========================================================================
+    class SoundManager {
+        constructor() {
+            this.enabled = true;
+            this.ctx = null;
+        }
+
+        init() {
+            if (!this.ctx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) this.ctx = new AudioCtx();
+            }
+            if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
+        }
+
+        // Âm thanh nhấc mảnh ghép lên
+        playPickup() {
+            if (!this.enabled) return;
+            this.init();
+            if (!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(480, this.ctx.currentTime + 0.06);
+            gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.06);
+        }
+
+        // Âm thanh "tách" êm ái khi khớp mảnh ghép
+        playSnap() {
+            if (!this.enabled) return;
+            this.init();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(520, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.14);
+        }
+
+        // Giai điệu chiến thắng
+        playWin() {
+            if (!this.enabled) return;
+            this.init();
+            if (!this.ctx) return;
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            notes.forEach((freq, idx) => {
+                const now = this.ctx.currentTime + idx * 0.11;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(0.16, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.45);
+            });
+        }
+    }
+
+    // =========================================================================
+    // 2. BỘ SƯU TẬP TRANH MẪU PROCEDURAL ART (800x800 CANVAS)
+    // =========================================================================
+    class ArtGenerator {
+        static getPresets() {
+            return [
+                {
+                    id: 'sunset-mountain',
+                    title: 'Hoàng Hôn Núi Phú Sĩ',
+                    category: 'Phong cảnh',
+                    draw: (ctx, w, h) => {
+                        // Bầu trời hoàng hôn chuyển sắc
+                        const sky = ctx.createLinearGradient(0, 0, 0, h * 0.68);
+                        sky.addColorStop(0, '#1e1b4b');
+                        sky.addColorStop(0.35, '#831843');
+                        sky.addColorStop(0.7, '#ea580c');
+                        sky.addColorStop(1, '#fde047');
+                        ctx.fillStyle = sky;
+                        ctx.fillRect(0, 0, w, h);
+
+                        // Mặt trời rực rỡ
+                        const sun = ctx.createRadialGradient(w * 0.5, h * 0.48, 10, w * 0.5, h * 0.48, w * 0.22);
+                        sun.addColorStop(0, '#ffffff');
+                        sun.addColorStop(0.3, '#fef08a');
+                        sun.addColorStop(1, 'rgba(253, 224, 71, 0)');
+                        ctx.fillStyle = sun;
+                        ctx.beginPath();
+                        ctx.arc(w * 0.5, h * 0.48, w * 0.22, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Dãy núi xa
+                        ctx.fillStyle = '#4c1d95';
+                        ctx.beginPath();
+                        ctx.moveTo(0, h * 0.65);
+                        ctx.lineTo(w * 0.22, h * 0.45);
+                        ctx.lineTo(w * 0.42, h * 0.62);
+                        ctx.lineTo(w * 0.78, h * 0.46);
+                        ctx.lineTo(w, h * 0.62);
+                        ctx.lineTo(w, h * 0.68);
+                        ctx.lineTo(0, h * 0.68);
+                        ctx.fill();
+
+                        // Ngọn núi chính hùng vĩ
+                        ctx.fillStyle = '#1e293b';
+                        ctx.beginPath();
+                        ctx.moveTo(w * 0.1, h * 0.68);
+                        ctx.quadraticCurveTo(w * 0.38, h * 0.48, w * 0.46, h * 0.28);
+                        ctx.lineTo(w * 0.54, h * 0.28);
+                        ctx.quadraticCurveTo(w * 0.62, h * 0.48, w * 0.9, h * 0.68);
+                        ctx.fill();
+
+                        // Chỏm tuyết trắng trên đỉnh núi
+                        ctx.fillStyle = '#f8fafc';
+                        ctx.beginPath();
+                        ctx.moveTo(w * 0.46, h * 0.28);
+                        ctx.lineTo(w * 0.54, h * 0.28);
+                        ctx.lineTo(w * 0.60, h * 0.40);
+                        ctx.lineTo(w * 0.55, h * 0.37);
+                        ctx.lineTo(w * 0.50, h * 0.42);
+                        ctx.lineTo(w * 0.45, h * 0.37);
+                        ctx.lineTo(w * 0.40, h * 0.40);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        // Mặt hồ phản chiếu
+                        const lake = ctx.createLinearGradient(0, h * 0.68, 0, h);
+                        lake.addColorStop(0, '#f59e0b');
+                        lake.addColorStop(0.4, '#9d174d');
+                        lake.addColorStop(1, '#0f172a');
+                        ctx.fillStyle = lake;
+                        ctx.fillRect(0, h * 0.68, w, h * 0.32);
+
+                        // Gợn sóng lấp lánh trên mặt hồ
+                        ctx.strokeStyle = 'rgba(254, 240, 138, 0.45)';
+                        ctx.lineWidth = 3;
+                        for (let i = 0; i < 18; i++) {
+                            const y = h * 0.70 + i * 13;
+                            const span = (18 - i) * 9;
+                            ctx.beginPath();
+                            ctx.moveTo(w * 0.5 - span, y);
+                            ctx.lineTo(w * 0.5 + span, y);
+                            ctx.stroke();
+                        }
+
+                        // Cành hoa anh đào tiền cảnh
+                        ctx.strokeStyle = '#090d16';
+                        ctx.lineWidth = 10;
+                        ctx.beginPath();
+                        ctx.moveTo(0, h * 0.18);
+                        ctx.quadraticCurveTo(w * 0.18, h * 0.22, w * 0.32, h * 0.12);
+                        ctx.stroke();
+
+                        const blossoms = [[90,145],[140,165],[190,140],[230,115],[120,125],[175,110],[255,95],[70,130]];
+                        blossoms.forEach(([bx, by]) => {
+                            ctx.fillStyle = '#fbcfe8';
+                            ctx.beginPath();
+                            ctx.arc(bx, by, 14, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.fillStyle = '#f472b6';
+                            ctx.beginPath();
+                            ctx.arc(bx, by, 5, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                    }
+                },
+                {
+                    id: 'cute-fox',
+                    title: 'Cáo Nhỏ Rừng Thu',
+                    category: 'Động vật',
+                    draw: (ctx, w, h) => {
+                        // Nền rừng thu ấm áp
+                        const bg = ctx.createRadialGradient(w * 0.5, h * 0.45, 50, w * 0.5, h * 0.5, w * 0.75);
+                        bg.addColorStop(0, '#fef3c7');
+                        bg.addColorStop(0.6, '#fde68a');
+                        bg.addColorStop(1, '#d97706');
+                        ctx.fillStyle = bg;
+                        ctx.fillRect(0, 0, w, h);
+
+                        // Lá phong rơi trang trí nền
+                        const leafColors = ['#ea580c', '#dc2626', '#ca8a04', '#b45309'];
+                        for (let i = 0; i < 24; i++) {
+                            const lx = (i * 137) % w;
+                            const ly = (i * 211) % h;
+                            ctx.save();
+                            ctx.translate(lx, ly);
+                            ctx.rotate(i * 0.7);
+                            ctx.fillStyle = leafColors[i % leafColors.length] + '55';
+                            ctx.beginPath();
+                            ctx.ellipse(0, 0, 18, 9, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.restore();
+                        }
+
+                        // Vòng tròn khung nền sau chú cáo
+                        ctx.fillStyle = '#fffbeb';
+                        ctx.beginPath();
+                        ctx.arc(w * 0.5, h * 0.52, w * 0.34, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Đuôi cáo xù cam trắng
+                        ctx.fillStyle = '#ea580c';
+                        ctx.beginPath();
+                        ctx.ellipse(w * 0.68, h * 0.72, 95, 55, -0.4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.ellipse(w * 0.76, h * 0.67, 42, 32, -0.4, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Thân cáo
+                        ctx.fillStyle = '#f97316';
+                        ctx.beginPath();
+                        ctx.ellipse(w * 0.5, h * 0.68, 95, 110, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Ngực trắng
+                        ctx.fillStyle = '#fff7ed';
+                        ctx.beginPath();
+                        ctx.ellipse(w * 0.5, h * 0.70, 55, 80, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Tai trái & Tai phải
+                        ctx.fillStyle = '#ea580c';
+                        ctx.beginPath();
+                        ctx.moveTo(w * 0.32, h * 0.42);
+                        ctx.lineTo(w * 0.28, h * 0.20);
+                        ctx.lineTo(w * 0.44, h * 0.34);
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.moveTo(w * 0.68, h * 0.42);
+                        ctx.lineTo(w * 0.72, h * 0.20);
+                        ctx.lineTo(w * 0.56, h * 0.34);
+                        ctx.fill();
+
+                        // Lòng tai hồng phấn
+                        ctx.fillStyle = '#fed7aa';
+                        ctx.beginPath();
+                        ctx.moveTo(w * 0.34, h * 0.39);
+                        ctx.lineTo(w * 0.31, h * 0.25);
+                        ctx.lineTo(w * 0.42, h * 0.35);
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.moveTo(w * 0.66, h * 0.39);
+                        ctx.lineTo(w * 0.69, h * 0.25);
+                        ctx.lineTo(w * 0.58, h * 0.35);
+                        ctx.fill();
+
+                        // Đầu cáo
+                        ctx.fillStyle = '#f97316';
+                        ctx.beginPath();
+                        ctx.ellipse(w * 0.5, h * 0.45, 130, 105, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Hai má trắng bầu bĩnh
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.moveTo(w * 0.37, h * 0.46);
+                        ctx.quadraticCurveTo(w * 0.5, h * 0.43, w * 0.63, h * 0.46);
+                        ctx.quadraticCurveTo(w * 0.63, h * 0.57, w * 0.5, h * 0.57);
+                        ctx.quadraticCurveTo(w * 0.37, h * 0.57, w * 0.37, h * 0.46);
+                        ctx.fill();
+
+                        // Đôi mắt long lanh
+                        [w * 0.42, w * 0.58].forEach(ex => {
+                            ctx.fillStyle = '#1e293b';
+                            ctx.beginPath();
+                            ctx.arc(ex, h * 0.44, 14, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.fillStyle = '#ffffff';
+                            ctx.beginPath();
+                            ctx.arc(ex - 4, h * 0.43, 5, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+
+                        // Mũi đen nhỏ & nụ cười
+                        ctx.fillStyle = '#1e293b';
+                        ctx.beginPath();
+                        ctx.ellipse(w * 0.5, h * 0.50, 12, 8, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.strokeStyle = '#1e293b';
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.arc(w * 0.485, h * 0.515, 10, 0.1, Math.PI - 0.2);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.arc(w * 0.515, h * 0.515, 10, 0.2, Math.PI - 0.1);
+                        ctx.stroke();
+                    }
+                },
+                {
+                    id: 'european-town',
+                    title: 'Phố Cổ Ven Sông',
+                    category: 'Kiến trúc',
+                    draw: (ctx, w, h) => {
+                        // Bầu trời xanh ngọc dịu mát
+                        const sky = ctx.createLinearGradient(0, 0, 0, h * 0.65);
+                        sky.addColorStop(0, '#0284c7');
+                        sky.addColorStop(1, '#bae6fd');
+                        ctx.fillStyle = sky;
+                        ctx.fillRect(0, 0, w, h);
+
+                        // Đám mây trắng bồng bềnh
+                        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                        [[150,120,45],[190,115,55],[235,125,40],[560,95,40],[605,90,50],[645,100,35]].forEach(([cx,cy,r]) => {
+                            ctx.beginPath();
+                            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+
+                        // Dãy nhà phố cổ nhiều màu sắc
+                        const houses = [
+                            { x: 40,  w: 150, h: 310, wall: '#fde047', roof: '#dc2626' },
+                            { x: 185, w: 145, h: 360, wall: '#fdba74', roof: '#9a3412' },
+                            { x: 325, w: 160, h: 330, wall: '#fbcfe8', roof: '#be185d' },
+                            { x: 480, w: 140, h: 380, wall: '#a7f3d0', roof: '#065f46' },
+                            { x: 615, w: 145, h: 300, wall: '#ddd6fe', roof: '#4c1d95' }
+                        ];
+
+                        const groundY = h * 0.68;
+                        houses.forEach(hs => {
+                            const topY = groundY - hs.h;
+                            // Thân nhà
+                            ctx.fillStyle = hs.wall;
+                            ctx.fillRect(hs.x, topY, hs.w, hs.h);
+                            ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(hs.x, topY, hs.w, hs.h);
+
+                            // Mái ngói tam giác
+                            ctx.fillStyle = hs.roof;
+                            ctx.beginPath();
+                            ctx.moveTo(hs.x - 8, topY);
+                            ctx.lineTo(hs.x + hs.w / 2, topY - 85);
+                            ctx.lineTo(hs.x + hs.w + 8, topY);
+                            ctx.closePath();
+                            ctx.fill();
+
+                            // Cửa sổ
+                            ctx.fillStyle = '#1e293b';
+                            const cols = 2;
+                            const rows = 3;
+                            for (let r = 0; r < rows; r++) {
+                                for (let c = 0; c < cols; c++) {
+                                    const wx = hs.x + 28 + c * (hs.w - 82);
+                                    const wy = topY + 35 + r * 75;
+                                    ctx.fillStyle = '#38bdf8';
+                                    ctx.fillRect(wx, wy, 26, 38);
+                                    ctx.strokeStyle = '#ffffff';
+                                    ctx.lineWidth = 3;
+                                    ctx.strokeRect(wx, wy, 26, 38);
+                                }
+                            }
+                        });
+
+                        // Bờ kè đá ven sông
+                        ctx.fillStyle = '#64748b';
+                        ctx.fillRect(0, groundY, w, 26);
+
+                        // Dòng sông xanh phản chiếu
+                        const river = ctx.createLinearGradient(0, groundY + 26, 0, h);
+                        river.addColorStop(0, '#0369a1');
+                        river.addColorStop(1, '#0c4a6e');
+                        ctx.fillStyle = river;
+                        ctx.fillRect(0, groundY + 26, w, h - groundY - 26);
+
+                        // Phản chiếu màu sắc ngôi nhà xuống nước
+                        houses.forEach(hs => {
+                            ctx.fillStyle = hs.wall + '44';
+                            ctx.fillRect(hs.x + 10, groundY + 35, hs.w - 20, 170);
+                        });
+                    }
+                },
+                {
+                    id: 'geometric-mosaic',
+                    title: 'Hòa Sắc Trừu Tượng',
+                    category: 'Nghệ thuật',
+                    draw: (ctx, w, h) => {
+                        // Nền tối sang trọng làm nổi bật các mảng màu
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fillRect(0, 0, w, h);
+
+                        const palette = ['#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6', '#ec4899', '#eab308'];
+                        const cell = 100;
+
+                        for (let row = 0; row < 8; row++) {
+                            for (let col = 0; col < 8; col++) {
+                                const x = col * cell;
+                                const y = row * cell;
+                                const c1 = palette[(row * 3 + col * 2) % palette.length];
+                                const c2 = palette[(row + col * 3 + 1) % palette.length];
+                                const pattern = (row + col) % 4;
+
+                                ctx.fillStyle = c1;
+                                ctx.fillRect(x, y, cell, cell);
+
+                                ctx.fillStyle = c2;
+                                ctx.beginPath();
+                                if (pattern === 0) {
+                                    ctx.arc(x + cell / 2, y + cell / 2, cell * 0.38, 0, Math.PI * 2);
+                                } else if (pattern === 1) {
+                                    ctx.moveTo(x, y);
+                                    ctx.lineTo(x + cell, y);
+                                    ctx.lineTo(x, y + cell);
+                                } else if (pattern === 2) {
+                                    ctx.arc(x, y, cell * 0.85, 0, Math.PI / 2);
+                                    ctx.lineTo(x, y);
+                                } else {
+                                    ctx.moveTo(x + cell / 2, y + 10);
+                                    ctx.lineTo(x + cell - 10, y + cell / 2);
+                                    ctx.lineTo(x + cell / 2, y + cell - 10);
+                                    ctx.lineTo(x + 10, y + cell / 2);
+                                }
+                                ctx.closePath();
+                                ctx.fill();
+                            }
+                        }
+
+                        // Vòng tròn tâm điểm nghệ thuật
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 8;
+                        ctx.beginPath();
+                        ctx.arc(w / 2, h / 2, 180, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+            ];
+        }
+
+        // Tạo ảnh DataURL hoặc Offscreen Canvas từ preset
+        static createArtCanvas(preset, size = 800) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            preset.draw(ctx, size, size);
+            return canvas;
+        }
+    }
+
+    // =========================================================================
+    // 3. ENGINE GHÉP HÌNH JIGSAW CHUYÊN NGHIỆP
+    // =========================================================================
+    class JigsawGame {
+        constructor() {
+            this.canvas = document.getElementById('game-canvas');
+            this.ctx = this.canvas.getContext('2d');
+            this.sound = new SoundManager();
+
+            // Trạng thái thiết lập
+            this.presets = ArtGenerator.getPresets();
+            this.selectedPresetIndex = 0;
+            this.customImage = null; // Lưu ảnh người dùng tải lên
+            this.gridSize = 4; // Mặc định 4x4
+
+            // Trạng thái ván chơi
+            this.sourceCanvas = null; // Ảnh gốc đã chuẩn hóa vuông 800x800
+            this.pieces = [];
+            this.boardRect = { x: 0, y: 0, size: 400 };
+            this.pieceSize = 100;
+            this.tabSize = 22;
+
+            // Tương tác kéo thả
+            this.draggingGroup = null;
+            this.dragOffset = { x: 0, y: 0 };
+            this.lastPointer = { x: 0, y: 0 };
+
+            // Hỗ trợ & Thống kê
+            this.showGhostHint = false;
+            this.moves = 0;
+            this.seconds = 0;
+            this.timerInterval = null;
+            this.isWon = false;
+            this.confetti = [];
+            this.snapAnimations = []; // Hiệu ứng lóe sáng khi khớp mảnh
+
+            this.initUI();
+            this.resizeCanvas();
+            window.addEventListener('resize', () => this.handleResize());
+            this.bindPointerEvents();
+
+            // Vòng lặp render 60FPS
+            requestAnimationFrame(() => this.loop());
+        }
+
+        // Khởi tạo giao diện chọn hình & sự kiện nút bấm
+        initUI() {
+            const gallery = document.getElementById('gallery-grid');
+            gallery.innerHTML = '';
+
+            this.presets.forEach((preset, idx) => {
+                const thumbCanvas = ArtGenerator.createArtCanvas(preset, 240);
+                const card = document.createElement('div');
+                card.className = `preset-card cursor-pointer rounded-2xl overflow-hidden border-2 transition-all bg-white shadow-sm ${idx === 0 ? 'border-amber-500 ring-2 ring-amber-400/50' : 'border-transparent hover:border-amber-300'}`;
+                card.dataset.index = idx;
+
+                card.innerHTML = `
+                    <div class="aspect-square w-full overflow-hidden bg-stone-100">
+                        <img src="${thumbCanvas.toDataURL()}" alt="${preset.title}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="p-2.5">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-amber-600">${preset.category}</div>
+                        <div class="font-display font-bold text-xs sm:text-sm text-stone-800 truncate">${preset.title}</div>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    this.customImage = null;
+                    this.selectedPresetIndex = idx;
+                    document.querySelectorAll('.preset-card').forEach(c => {
+                        c.classList.remove('border-amber-500', 'ring-2', 'ring-amber-400/50');
+                        c.classList.add('border-transparent');
+                    });
+                    card.classList.remove('border-transparent');
+                    card.classList.add('border-amber-500', 'ring-2', 'ring-amber-400/50');
+                });
+
+                gallery.appendChild(card);
+            });
+
+            // Xử lý tải ảnh cá nhân từ máy
+            document.getElementById('image-upload').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.customImage = img;
+                        // Bỏ chọn các preset
+                        document.querySelectorAll('.preset-card').forEach(c => {
+                            c.classList.remove('border-amber-500', 'ring-2', 'ring-amber-400/50');
+                            c.classList.add('border-transparent');
+                        });
+                        this.showToast('Đã tải ảnh của bạn! Nhấn "Bắt Đầu Ghép Hình" để chơi.');
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // Chọn độ khó
+            document.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this.gridSize = parseInt(btn.dataset.grid, 10);
+                    document.querySelectorAll('.diff-btn').forEach(b => {
+                        b.classList.remove('border-amber-500', 'bg-amber-50/90');
+                    });
+                    btn.classList.add('border-amber-500', 'bg-amber-50/90');
+                });
+            });
+
+            // Nút Bắt đầu game
+            document.getElementById('btn-start-game').addEventListener('click', () => {
+                document.getElementById('setup-modal').classList.add('hidden');
+                this.startNewGame();
+            });
+
+            // Mở / Đóng Modal
+            document.getElementById('btn-open-menu').addEventListener('click', () => {
+                document.getElementById('setup-modal').classList.remove('hidden');
+            });
+            document.getElementById('btn-close-modal').addEventListener('click', () => {
+                // Nếu chưa có game nào chạy thì tự tạo game mặc định
+                if (!this.sourceCanvas) this.startNewGame();
+                document.getElementById('setup-modal').classList.add('hidden');
+            });
+
+            // Bật / Tắt hình mờ gợi ý
+            const btnHint = document.getElementById('btn-toggle-hint');
+            btnHint.addEventListener('click', () => {
+                this.showGhostHint = !this.showGhostHint;
+                btnHint.classList.toggle('btn-active', this.showGhostHint);
+                this.showToast(this.showGhostHint ? 'Đã bật hình nền gợi ý' : 'Đã tắt hình nền gợi ý');
+            });
+
+            // Xếp gọn mảnh lẻ sang hai bên
+            document.getElementById('btn-scatter').addEventListener('click', () => {
+                this.scatterLoosePieces();
+                this.showToast('Đã xếp gọn các mảnh chưa ghép');
+            });
+
+            // Bật / Tắt âm thanh
+            document.getElementById('btn-sound').addEventListener('click', () => {
+                this.sound.enabled = !this.sound.enabled;
+                document.getElementById('icon-sound-on').classList.toggle('hidden', !this.sound.enabled);
+                document.getElementById('icon-sound-off').classList.toggle('hidden', this.sound.enabled);
+                this.showToast(this.sound.enabled ? 'Đã bật âm thanh' : 'Đã tắt âm thanh');
+            });
+
+            // Nút trên Modal Chiến Thắng
+            document.getElementById('btn-play-again').addEventListener('click', () => {
+                document.getElementById('victory-modal').classList.add('hidden');
+                document.getElementById('victory-modal').classList.remove('flex');
+                this.startNewGame();
+            });
+            document.getElementById('btn-choose-another').addEventListener('click', () => {
+                document.getElementById('victory-modal').classList.add('hidden');
+                document.getElementById('victory-modal').classList.remove('flex');
+                document.getElementById('setup-modal').classList.remove('hidden');
+            });
+        }
+
+        showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            clearTimeout(this.toastTimer);
+            this.toastTimer = setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2200);
+        }
+
+        // Tính toán kích thước bàn ghép phù hợp với mọi màn hình (Responsive)
+        calculateLayout() {
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            const isMobile = w < 640;
+
+            // Dành không gian xung quanh bảng để chứa các mảnh ghép
+            const maxBoardW = isMobile ? w * 0.78 : Math.min(w * 0.52, h * 0.72);
+            const maxBoardH = isMobile ? h * 0.56 : h * 0.74;
+            const size = Math.floor(Math.min(maxBoardW, maxBoardH));
+
+            this.boardRect = {
+                x: Math.floor((w - size) / 2),
+                y: Math.floor((h - size) / 2) - (isMobile ? 25 : 0),
+                size: size
+            };
+            this.pieceSize = size / this.gridSize;
+            this.tabSize = this.pieceSize * 0.22;
+        }
+
+        resizeCanvas() {
+            const wrapper = document.getElementById('canvas-wrapper');
+            this.canvas.width = wrapper.clientWidth;
+            this.canvas.height = wrapper.clientHeight;
+            this.calculateLayout();
+        }
+
+        handleResize() {
+            const oldBoard = { ...this.boardRect };
+            this.resizeCanvas();
+            if (!this.sourceCanvas || this.pieces.length === 0) return;
+
+            // Tỷ lệ co giãn khi xoay màn hình hoặc thay đổi kích thước cửa sổ
+            const scale = this.boardRect.size / oldBoard.size;
+            this.pieces.forEach(p => {
+                if (p.locked) {
+                    p.x = this.boardRect.x + p.col * this.pieceSize;
+                    p.y = this.boardRect.y + p.row * this.pieceSize;
+                } else {
+                    const relX = (p.x - oldBoard.x) * scale;
+                    const relY = (p.y - oldBoard.y) * scale;
+                    p.x = Math.max(10, Math.min(this.canvas.width - this.pieceSize - 10, this.boardRect.x + relX));
+                    p.y = Math.max(10, Math.min(this.canvas.height - this.pieceSize - 10, this.boardRect.y + relY));
+                }
+            });
+            this.prerenderAllPieces();
+        }
+
+        // Bắt đầu màn chơi mới
+        startNewGame() {
+            this.sound.init();
+            this.isWon = false;
+            this.moves = 0;
+            this.seconds = 0;
+            this.confetti = [];
+            this.snapAnimations = [];
+            this.updateStatsUI();
+
+            // Cập nhật tiêu đề phụ
+            const diffNames = { 3: 'Dễ', 4: 'Trung bình', 5: 'Khó', 6: 'Siêu khó' };
+            document.getElementById('status-subtitle').textContent =
+                `Chế độ: ${diffNames[this.gridSize]} (${this.gridSize}×${this.gridSize} - ${this.gridSize ** 2} mảnh)`;
+
+            // Chuẩn hóa ảnh nguồn về hình vuông 800x800 (crop center nếu ảnh upload hình chữ nhật)
+            const targetRes = 800;
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = targetRes;
+            offCanvas.height = targetRes;
+            const oCtx = offCanvas.getContext('2d');
+
+            if (this.customImage) {
+                const img = this.customImage;
+                const minSide = Math.min(img.width, img.height);
+                const sx = (img.width - minSide) / 2;
+                const sy = (img.height - minSide) / 2;
+                oCtx.drawImage(img, sx, sy, minSide, minSide, 0, 0, targetRes, targetRes);
+            } else {
+                const preset = this.presets[this.selectedPresetIndex];
+                preset.draw(oCtx, targetRes, targetRes);
+            }
+            this.sourceCanvas = offCanvas;
+
+            this.calculateLayout();
+            this.generatePieces();
+            this.prerenderAllPieces();
+            this.scatterLoosePieces();
+            this.startTimer();
+        }
+
+        // Sinh dữ liệu các mảnh ghép với hình dạng răng cưa khớp tuyệt đối
+        generatePieces() {
+            this.pieces = [];
+            const N = this.gridSize;
+
+            // Ma trận cạnh ngang (horizontal edges) và cạnh dọc (vertical edges)
+            // Giá trị: 0 = cạnh phẳng (viền ngoài), 1 = lồi ra (tab), -1 = lõm vào (blank)
+            const hEdges = Array.from({ length: N + 1 }, () => Array(N).fill(0));
+            const vEdges = Array.from({ length: N }, () => Array(N + 1).fill(0));
+
+            for (let r = 1; r < N; r++) {
+                for (let c = 0; c < N; c++) {
+                    hEdges[r][c] = Math.random() > 0.5 ? 1 : -1;
+                }
+            }
+            for (let r = 0; r < N; r++) {
+                for (let c = 1; c < N; c++) {
+                    vEdges[r][c] = Math.random() > 0.5 ? 1 : -1;
+                }
+            }
+
+            let idCounter = 0;
+            for (let r = 0; r < N; r++) {
+                for (let c = 0; c < N; c++) {
+                    // Quy ước hướng lồi/lõm so với tâm mảnh ghép: +1 là lồi ra ngoài, -1 là lõm vào trong
+                    const top = r === 0 ? 0 : -hEdges[r][c];
+                    const bottom = r === N - 1 ? 0 : hEdges[r + 1][c];
+                    const left = c === 0 ? 0 : -vEdges[r][c];
+                    const right = c === N - 1 ? 0 : vEdges[r][c + 1];
+
+                    this.pieces.push({
+                        id: idCounter,
+                        groupId: idCounter, // Ban đầu mỗi mảnh thuộc 1 nhóm riêng
+                        row: r,
+                        col: c,
+                        edges: { top, right, bottom, left },
+                        x: 0,
+                        y: 0,
+                        locked: false,
+                        cacheCanvas: null,
+                        pad: 0
+                    });
+                    idCounter++;
+                }
+            }
+        }
+
+        // Vẽ đường dẫn (Path) răng cưa Jigsaw bằng đường cong Bezier chuẩn xác
+        tracePiecePath(ctx, size, edges, offsetX = 0, offsetY = 0) {
+            const t = size * 0.22; // Độ nhô của khớp nối
+            ctx.beginPath();
+            ctx.moveTo(offsetX, offsetY);
+
+            // 1. Cạnh TRÊN (từ trái sang phải)
+            if (edges.top === 0) {
+                ctx.lineTo(offsetX + size, offsetY);
+            } else {
+                const dir = -edges.top; // -1 hướng lên trên (lồi), +1 hướng xuống dưới (lõm)
+                ctx.lineTo(offsetX + size * 0.35, offsetY);
+                ctx.bezierCurveTo(
+                    offsetX + size * 0.35, offsetY + dir * t * 0.3,
+                    offsetX + size * 0.28, offsetY + dir * t,
+                    offsetX + size * 0.50, offsetY + dir * t
+                );
+                ctx.bezierCurveTo(
+                    offsetX + size * 0.72, offsetY + dir * t,
+                    offsetX + size * 0.65, offsetY + dir * t * 0.3,
+                    offsetX + size * 0.65, offsetY
+                );
+                ctx.lineTo(offsetX + size, offsetY);
+            }
+
+            // 2. Cạnh PHẢI (từ trên xuống dưới)
+            if (edges.right === 0) {
+                ctx.lineTo(offsetX + size, offsetY + size);
+            } else {
+                const dir = edges.right; // +1 hướng sang phải (lồi)
+                ctx.lineTo(offsetX + size, offsetY + size * 0.35);
+                ctx.bezierCurveTo(
+                    offsetX + size + dir * t * 0.3, offsetY + size * 0.35,
+                    offsetX + size + dir * t, offsetY + size * 0.28,
+                    offsetX + size + dir * t, offsetY + size * 0.50
+                );
+                ctx.bezierCurveTo(
+                    offsetX + size + dir * t, offsetY + size * 0.72,
+                    offsetX + size + dir * t * 0.3, offsetY + size * 0.65,
+                    offsetX + size, offsetY + size * 0.65
+                );
+                ctx.lineTo(offsetX + size, offsetY + size);
+            }
+
+            // 3. Cạnh DƯỚI (từ phải sang trái)
+            if (edges.bottom === 0) {
+                ctx.lineTo(offsetX, offsetY + size);
+            } else {
+                const dir = edges.bottom; // +1 hướng xuống dưới (lồi)
+                ctx.lineTo(offsetX + size * 0.65, offsetY + size);
+                ctx.bezierCurveTo(
+                    offsetX + size * 0.65, offsetY + size + dir * t * 0.3,
+                    offsetX + size * 0.72, offsetY + size + dir * t,
+                    offsetX + size * 0.50, offsetY + size + dir * t
+                );
+                ctx.bezierCurveTo(
+                    offsetX + size * 0.28, offsetY + size + dir * t,
+                    offsetX + size * 0.35, offsetY + size + dir * t * 0.3,
+                    offsetX + size * 0.35, offsetY + size
+                );
+                ctx.lineTo(offsetX, offsetY + size);
+            }
+
+            // 4. Cạnh TRÁI (từ dưới lên trên)
+            if (edges.left === 0) {
+                ctx.lineTo(offsetX, offsetY);
+            } else {
+                const dir = -edges.left; // -1 hướng sang trái (lồi)
+                ctx.lineTo(offsetX, offsetY + size * 0.65);
+                ctx.bezierCurveTo(
+                    offsetX + dir * t * 0.3, offsetY + size * 0.65,
+                    offsetX + dir * t, offsetY + size * 0.72,
+                    offsetX + dir * t, offsetY + size * 0.50
+                );
+                ctx.bezierCurveTo(
+                    offsetX + dir * t, offsetY + size * 0.28,
+                    offsetX + dir * t * 0.3, offsetY + size * 0.35,
+                    offsetX, offsetY + size * 0.35
+                );
+                ctx.lineTo(offsetX, offsetY);
+            }
+
+            ctx.closePath();
+        }
+
+        // Pre-render từng mảnh ghép vào Offscreen Canvas để tối ưu tốc độ khung hình
+        prerenderAllPieces() {
+            const pSize = this.pieceSize;
+            const pad = Math.ceil(pSize * 0.32); // Phần đệm chứa khớp lồi
+            const srcStep = this.sourceCanvas.width / this.gridSize;
+            const srcRatio = srcStep / pSize;
+
+            this.pieces.forEach(p => {
+                const c = document.createElement('canvas');
+                c.width = Math.ceil(pSize + pad * 2);
+                c.height = Math.ceil(pSize + pad * 2);
+                const ctx = c.getContext('2d');
+
+                ctx.save();
+                this.tracePiecePath(ctx, pSize, p.edges, pad, pad);
+                ctx.clip();
+
+                // Vẽ phần hình ảnh tương ứng (bao gồm cả phần lấn sang ô bên cạnh cho khớp lồi)
+                const sx = (p.col * pSize - pad) * srcRatio;
+                const sy = (p.row * pSize - pad) * srcRatio;
+                const sw = (pSize + pad * 2) * srcRatio;
+                const sh = (pSize + pad * 2) * srcRatio;
+
+                ctx.drawImage(this.sourceCanvas, sx, sy, sw, sh, 0, 0, pSize + pad * 2, pSize + pad * 2);
+
+                // Hiệu ứng viền sáng nổi 3D nhẹ cho cạnh mảnh ghép
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                ctx.restore();
+
+                // Viền tối sắc nét bên ngoài
+                ctx.save();
+                this.tracePiecePath(ctx, pSize, p.edges, pad, pad);
+                ctx.strokeStyle = 'rgba(30, 20, 10, 0.45)';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+                ctx.restore();
+
+                p.cacheCanvas = c;
+                p.pad = pad;
+            });
+        }
+
+        // Xếp gọn các mảnh chưa khóa vào vùng trống xung quanh bảng ghép
+        scatterLoosePieces() {
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            const b = this.boardRect;
+            const pSize = this.pieceSize;
+            const isMobile = w < 640;
+
+            // Gom theo từng groupId chưa locked để không tách rời các mảnh đã nối với nhau
+            const groupsMap = new Map();
+            this.pieces.forEach(p => {
+                if (!p.locked) {
+                    if (!groupsMap.has(p.groupId)) groupsMap.set(p.groupId, []);
+                    groupsMap.get(p.groupId).push(p);
+                }
+            });
+
+            const groups = Array.from(groupsMap.values());
+            // Xáo trộn ngẫu nhiên thứ tự
+            for (let i = groups.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [groups[i], groups[j]] = [groups[j], groups[i]];
+            }
+
+            groups.forEach((grp, idx) => {
+                // Tính bounding box của nhóm hiện tại
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                grp.forEach(p => {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x + pSize);
+                    maxY = Math.max(maxY, p.y + pSize);
+                });
+                const grpW = maxX - minX;
+                const grpH = maxY - minY;
+
+                let targetX, targetY;
+                if (isMobile) {
+                    // Trên mobile: rải ở vùng phía dưới và phía trên bảng
+                    const zone = idx % 2;
+                    targetX = 12 + Math.random() * Math.max(10, w - grpW - 24);
+                    if (zone === 0 && b.y > grpH + 15) {
+                        targetY = 8 + Math.random() * Math.max(5, b.y - grpH - 12);
+                    } else {
+                        const bottomStart = b.y + b.size + 10;
+                        const availH = Math.max(10, h - bottomStart - grpH - 10);
+                        targetY = bottomStart + Math.random() * availH;
+                    }
+                } else {
+                    // Trên desktop/tablet: chia đều hai bên trái và phải của bảng
+                    const isLeft = idx % 2 === 0;
+                    if (isLeft && b.x > grpW + 20) {
+                        targetX = 16 + Math.random() * Math.max(10, b.x - grpW - 32);
+                    } else {
+                        const rightStart = b.x + b.size + 16;
+                        const availW = Math.max(10, w - rightStart - grpW - 16);
+                        targetX = rightStart + Math.random() * availW;
+                    }
+                    targetY = 16 + Math.random() * Math.max(10, h - grpH - 32);
+                }
+
+                // Đảm bảo không vượt ra khỏi màn hình
+                targetX = Math.max(8, Math.min(w - grpW - 8, targetX));
+                targetY = Math.max(8, Math.min(h - grpH - 8, targetY));
+
+                const dx = targetX - minX;
+                const dy = targetY - minY;
+                grp.forEach(p => {
+                    p.x += dx;
+                    p.y += dy;
+                });
+            });
+        }
+
+        // Bộ đếm thời gian
+        startTimer() {
+            clearInterval(this.timerInterval);
+            this.timerInterval = setInterval(() => {
+                if (!this.isWon) {
+                    this.seconds++;
+                    this.updateStatsUI();
+                }
+            }, 1000);
+        }
+
+        formatTime(sec) {
+            const m = Math.floor(sec / 60).toString().padStart(2, '0');
+            const s = (sec % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        updateStatsUI() {
+            document.getElementById('timer-display').textContent = this.formatTime(this.seconds);
+            document.getElementById('moves-display').textContent = this.moves;
+            const lockedCount = this.pieces.filter(p => p.locked).length;
+            const total = this.pieces.length || 1;
+            const pct = Math.round((lockedCount / total) * 100);
+            document.getElementById('progress-display').textContent = `${pct}%`;
+        }
+
+        // Xử lý sự kiện chuột và cảm ứng thống nhất qua Pointer Events
+        bindPointerEvents() {
+            const getPos = (e) => {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            };
+
+            this.canvas.addEventListener('pointerdown', (e) => {
+                if (this.isWon || !this.sourceCanvas) return;
+                this.canvas.setPointerCapture(e.pointerId);
+                const pos = getPos(e);
+                this.lastPointer = pos;
+
+                // Duyệt ngược từ trên xuống dưới để chọn mảnh nằm trên cùng
+                for (let i = this.pieces.length - 1; i >= 0; i--) {
+                    const p = this.pieces[i];
+                    if (p.locked) continue;
+
+                    // Kiểm tra điểm chạm có nằm trong vùng mảnh ghép không
+                    if (
+                        pos.x >= p.x - this.tabSize * 0.5 &&
+                        pos.x <= p.x + this.pieceSize + this.tabSize * 0.5 &&
+                        pos.y >= p.y - this.tabSize * 0.5 &&
+                        pos.y <= p.y + this.pieceSize + this.tabSize * 0.5
+                    ) {
+                        this.draggingGroup = p.groupId;
+                        this.sound.playPickup();
+
+                        // Đưa toàn bộ các mảnh trong nhóm đang kéo lên lớp trên cùng (z-index cao nhất)
+                        const groupPieces = this.pieces.filter(item => item.groupId === this.draggingGroup);
+                        const otherPieces = this.pieces.filter(item => item.groupId !== this.draggingGroup);
+                        this.pieces = [...otherPieces, ...groupPieces];
+                        break;
+                    }
+                }
+            });
+
+            this.canvas.addEventListener('pointermove', (e) => {
+                if (this.draggingGroup === null) return;
+                const pos = getPos(e);
+                const dx = pos.x - this.lastPointer.x;
+                const dy = pos.y - this.lastPointer.y;
+                this.lastPointer = pos;
+
+                // Di chuyển toàn bộ nhóm mảnh ghép
+                this.pieces.forEach(p => {
+                    if (p.groupId === this.draggingGroup) {
+                        p.x += dx;
+                        p.y += dy;
+                    }
+                });
+            });
+
+            const endDrag = (e) => {
+                if (this.draggingGroup === null) return;
+                if (e.pointerId) {
+                    try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+                }
+
+                this.moves++;
+                this.checkSnapAndMerge(this.draggingGroup);
+                this.draggingGroup = null;
+                this.updateStatsUI();
+                this.checkVictory();
+            };
+
+            this.canvas.addEventListener('pointerup', endDrag);
+            this.canvas.addEventListener('pointercancel', endDrag);
+        }
+
+        // Kiểm tra hút từ tính vào bảng hoặc gộp nhóm với mảnh liền kề
+        checkSnapAndMerge(groupId) {
+            const snapDist = Math.max(18, this.pieceSize * 0.26);
+            const groupPieces = this.pieces.filter(p => p.groupId === groupId);
+            let snapped = false;
+
+            // 1. Kiểm tra khớp vào đúng tọa độ trên Bảng Khung (Board)
+            for (const p of groupPieces) {
+                const targetX = this.boardRect.x + p.col * this.pieceSize;
+                const targetY = this.boardRect.y + p.row * this.pieceSize;
+                const dist = Math.hypot(p.x - targetX, p.y - targetY);
+
+                if (dist < snapDist) {
+                    const dx = targetX - p.x;
+                    const dy = targetY - p.y;
+                    groupPieces.forEach(gp => {
+                        gp.x += dx;
+                        gp.y += dy;
+                        gp.locked = true;
+                        this.addSnapEffect(gp.x + this.pieceSize / 2, gp.y + this.pieceSize / 2);
+                    });
+
+                    // Đưa các mảnh đã khóa xuống lớp dưới cùng để không che mảnh chưa ghép
+                    const locked = this.pieces.filter(item => item.locked);
+                    const unlocked = this.pieces.filter(item => !item.locked);
+                    this.pieces = [...locked, ...unlocked];
+
+                    this.sound.playSnap();
+                    return;
+                }
+            }
+
+            // 2. Kiểm tra khớp với các mảnh hàng xóm ở bên ngoài bảng (Group Merging)
+            const neighborsOffset = [
+                { dr: -1, dc: 0 },
+                { dr: 1, dc: 0 },
+                { dr: 0, dc: -1 },
+                { dr: 0, dc: 1 }
+            ];
+
+            for (const p of groupPieces) {
+                for (const off of neighborsOffset) {
+                    const nRow = p.row + off.dr;
+                    const nCol = p.col + off.dc;
+                    const neighbor = this.pieces.find(
+                        item => item.row === nRow && item.col === nCol && item.groupId !== groupId
+                    );
+
+                    if (neighbor) {
+                        // Vị trí chuẩn của p so với neighbor hiện tại
+                        const expectedX = neighbor.x - off.dc * this.pieceSize;
+                        const expectedY = neighbor.y - off.dr * this.pieceSize;
+                        const dist = Math.hypot(p.x - expectedX, p.y - expectedY);
+
+                        if (dist < snapDist) {
+                            const dx = expectedX - p.x;
+                            const dy = expectedY - p.y;
+                            const targetGroupId = neighbor.groupId;
+                            const isNeighborLocked = neighbor.locked;
+
+                            groupPieces.forEach(gp => {
+                                gp.x += dx;
+                                gp.y += dy;
+                                gp.groupId = targetGroupId;
+                                if (isNeighborLocked) gp.locked = true;
+                                this.addSnapEffect(gp.x + this.pieceSize / 2, gp.y + this.pieceSize / 2);
+                            });
+
+                            if (isNeighborLocked) {
+                                const locked = this.pieces.filter(item => item.locked);
+                                const unlocked = this.pieces.filter(item => !item.locked);
+                                this.pieces = [...locked, ...unlocked];
+                            }
+
+                            snapped = true;
+                            break;
+                        }
+                    }
+                }
+                if (snapped) break;
+            }
+
+            if (snapped) {
+                this.sound.playSnap();
+            }
+        }
+
+        addSnapEffect(x, y) {
+            this.snapAnimations.push({
+                x, y,
+                radius: this.pieceSize * 0.2,
+                maxRadius: this.pieceSize * 0.75,
+                alpha: 0.9
+            });
+        }
+
+        // Kiểm tra điều kiện chiến thắng
+        checkVictory() {
+            if (this.isWon) return;
+            const allLocked = this.pieces.every(p => p.locked);
+            if (allLocked) {
+                this.isWon = true;
+                clearInterval(this.timerInterval);
+                this.sound.playWin();
+                this.spawnConfetti();
+
+                // Hiển thị modal chúc mừng sau 700ms để người chơi chiêm ngưỡng bức tranh hoàn chỉnh
+                setTimeout(() => {
+                    document.getElementById('victory-preview').src = this.sourceCanvas.toDataURL();
+                    document.getElementById('victory-time').textContent = this.formatTime(this.seconds);
+                    document.getElementById('victory-moves').textContent = this.moves;
+                    const vModal = document.getElementById('victory-modal');
+                    vModal.classList.remove('hidden');
+                    vModal.classList.add('flex');
+                }, 800);
+            }
+        }
+
+        spawnConfetti() {
+            const colors = ['#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6'];
+            for (let i = 0; i < 120; i++) {
+                this.confetti.push({
+                    x: this.canvas.width / 2,
+                    y: this.canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 18,
+                    vy: (Math.random() - 0.7) * 18,
+                    size: 6 + Math.random() * 6,
+                    color: colors[i % colors.length],
+                    rot: Math.random() * Math.PI * 2,
+                    vRot: (Math.random() - 0.5) * 0.2
+                });
+            }
+        }
+
+        // Vòng lặp vẽ khung hình
+        loop() {
+            const ctx = this.ctx;
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            if (this.sourceCanvas) {
+                const b = this.boardRect;
+
+                // 1. Vẽ Khung Bảng Ghép Hình (Board Frame)
+                ctx.save();
+                ctx.fillStyle = 'rgba(255, 250, 240, 0.85)';
+                ctx.shadowColor = 'rgba(92, 64, 38, 0.14)';
+                ctx.shadowBlur = 24;
+                ctx.shadowOffsetY = 8;
+                ctx.beginPath();
+                ctx.roundRect(b.x - 10, b.y - 10, b.size + 20, b.size + 20, 16);
+                ctx.fill();
+                ctx.restore();
+
+                // Nền bên trong khung
+                ctx.fillStyle = '#efe5d8';
+                ctx.fillRect(b.x, b.y, b.size, b.size);
+
+                // 2. Vẽ Ảnh Mẫu Mờ (Ghost Image) nếu người chơi bật gợi ý
+                if (this.showGhostHint) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.24;
+                    ctx.drawImage(this.sourceCanvas, b.x, b.y, b.size, b.size);
+                    ctx.restore();
+                }
+
+                // 3. Vẽ lưới ô mờ gợi ý trên bảng
+                ctx.strokeStyle = 'rgba(168, 140, 108, 0.28)';
+                ctx.lineWidth = 1;
+                for (let i = 1; i < this.gridSize; i++) {
+                    const offset = i * this.pieceSize;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x + offset, b.y);
+                    ctx.lineTo(b.x + offset, b.y + b.size);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(b.x, b.y + offset);
+                    ctx.lineTo(b.x + b.size, b.y + offset);
+                    ctx.stroke();
+                }
+
+                // Viền khung bảng
+                ctx.strokeStyle = '#c8ad8d';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(b.x, b.y, b.size, b.size);
+
+                // 4. Vẽ tất cả các mảnh ghép
+                this.pieces.forEach(p => {
+                    if (!p.cacheCanvas) return;
+                    const isDragging = p.groupId === this.draggingGroup;
+
+                    ctx.save();
+                    if (isDragging) {
+                        // Hiệu ứng nhấc bổng mảnh ghép khi đang kéo
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+                        ctx.shadowBlur = 16;
+                        ctx.shadowOffsetX = 4;
+                        ctx.shadowOffsetY = 8;
+                        ctx.drawImage(p.cacheCanvas, p.x - p.pad, p.y - p.pad - 3);
+                    } else if (!p.locked) {
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+                        ctx.shadowBlur = 5;
+                        ctx.shadowOffsetX = 1;
+                        ctx.shadowOffsetY = 2;
+                        ctx.drawImage(p.cacheCanvas, p.x - p.pad, p.y - p.pad);
+                    } else {
+                        ctx.drawImage(p.cacheCanvas, p.x - p.pad, p.y - p.pad);
+                    }
+                    ctx.restore();
+                });
+
+                // 5. Hiệu ứng lóe sáng khi khớp mảnh
+                for (let i = this.snapAnimations.length - 1; i >= 0; i--) {
+                    const anim = this.snapAnimations[i];
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(245, 158, 11, ${anim.alpha})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(anim.x, anim.y, anim.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    anim.radius += 3.5;
+                    anim.alpha -= 0.045;
+                    if (anim.alpha <= 0) this.snapAnimations.splice(i, 1);
+                }
+
+                // 6. Hiệu ứng pháo giấy Confetti khi chiến thắng
+                for (let i = this.confetti.length - 1; i >= 0; i--) {
+                    const c = this.confetti[i];
+                    c.x += c.vx;
+                    c.y += c.vy;
+                    c.vy += 0.35; // Trọng lực
+                    c.vx *= 0.99;
+                    c.rot += c.vRot;
+
+                    ctx.save();
+                    ctx.translate(c.x, c.y);
+                    ctx.rotate(c.rot);
+                    ctx.fillStyle = c.color;
+                    ctx.fillRect(-c.size / 2, -c.size / 2, c.size, c.size * 0.6);
+                    ctx.restore();
+
+                    if (c.y > h + 30) this.confetti.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(() => this.loop());
+        }
+    }
+
+    // Khởi chạy game sau khi trang tải hoàn tất
+    window.addEventListener('DOMContentLoaded', () => {
+        window.jigsawApp = new JigsawGame();
+    });
+    </script>
+</body>
+</html>
